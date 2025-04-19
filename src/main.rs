@@ -18,25 +18,41 @@ struct GameState {
     cursor_y: f32,
     screen_width: f32,
     screen_height: f32,
+    last_tick: f64,
+    tick_duration: f64,
     event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
     resources: Resources,
+}
+
+impl GameState {
+    fn idle_tick(&mut self) {
+        // Placeholder, increment squares by circle count
+        self.resources.squares += self.resources.circles;
+    }
 }
 
 fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     let mut return_event = None;
 
+    let gutter = 10.0;
+    let main_width = 0.8;
+    let res_width = 0.2;
+    let height = 0.9;
     // Main window
     draw_rectangle(
-        10.0,
-        10.0,
-        0.8 * state.screen_width - 20.0,
-        state.screen_height - 20.0,
+        gutter,
+        gutter,
+        main_width * state.screen_width - 2.0 * gutter,
+        height * state.screen_height - 2.0 * gutter,
         LIGHTGRAY,
     );
     widgets::Window::new(
         hash!(),
-        vec2(10.0, 10.0),
-        vec2(0.8 * state.screen_width - 20.0, state.screen_height - 20.0),
+        vec2(gutter, gutter),
+        vec2(
+            main_width * state.screen_width - 2.0 * gutter,
+            height * state.screen_height - 2.0 * gutter,
+        ),
     )
     .movable(false)
     .label("Main Window")
@@ -49,16 +65,19 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
 
     // Resources Window
     draw_rectangle(
-        0.8 * state.screen_width + 10.0,
-        10.0,
-        0.2 * state.screen_width - 20.0,
-        state.screen_height - 20.0,
+        main_width * state.screen_width + gutter,
+        gutter,
+        res_width * state.screen_width - 2.0 * gutter,
+        height * state.screen_height - 2.0 * gutter,
         LIGHTGRAY,
     );
     widgets::Window::new(
         hash!(),
-        vec2(0.8 * state.screen_width + 10.0, 10.0),
-        vec2(0.2 * state.screen_width - 20.0, state.screen_height - 20.0),
+        vec2(main_width * state.screen_width + gutter, gutter),
+        vec2(
+            res_width * state.screen_width - 2.0 * gutter,
+            height * state.screen_height - 2.0 * gutter,
+        ),
     )
     .movable(false)
     .label("Resource Window")
@@ -76,6 +95,39 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     return_event
 }
 
+fn draw_status_bar(state: &GameState) {
+    let gutter = 10.0;
+    let _main_width = 0.8;
+    let _res_width = 0.2;
+    let height = 0.9;
+
+    draw_rectangle(
+        gutter,
+        height * state.screen_height + gutter,
+        state.screen_width - 2.0 * gutter,
+        (1.0 - height) * state.screen_height - 2.0 * gutter,
+        LIGHTGRAY,
+    );
+    widgets::Window::new(
+        hash!(),
+        vec2(gutter, height * state.screen_height + gutter),
+        vec2(
+            state.screen_width - 2.0 * gutter,
+            (1.0 - height) * state.screen_height - 2.0 * gutter,
+        ),
+    )
+    .movable(false)
+    .label("Status Window")
+    .ui(&mut root_ui(), |ui| {
+        ui.label(None, "Status Window Lable");
+        let tick_timer = get_time() - state.last_tick;
+        ui.label(
+            None,
+            format!("[{:.3} / {:.3}]", tick_timer, state.tick_duration).as_str(),
+        );
+    });
+}
+
 #[macroquad::main("Unnamed Incremental Roguelike")]
 async fn main() {
     info!("Starting preamble");
@@ -83,8 +135,10 @@ async fn main() {
     let mut state: GameState = GameState {
         cursor_x: 0.0,
         cursor_y: 0.0,
-        screen_width: 1280.0,
-        screen_height: 800.0,
+        screen_width: 1920.0,
+        screen_height: 1080.0,
+        last_tick: get_time(),
+        tick_duration: 15.0f64,
         event_queue: vec![],
         resources: Resources {
             circles: 0.0,
@@ -93,6 +147,7 @@ async fn main() {
     };
 
     request_new_screen_size(state.screen_width, state.screen_height);
+    next_frame().await;
     if screen_width() != state.screen_width {
         warn!("Could not hit requested screen width");
         warn!(
@@ -146,6 +201,14 @@ async fn main() {
             }
         }
 
+        let cur_time = get_time();
+        if (cur_time - state.last_tick) >= state.tick_duration {
+            state.idle_tick();
+
+            // Set last tick time
+            state.last_tick = cur_time;
+        }
+
         // Render
         clear_background(BLACK);
 
@@ -153,6 +216,8 @@ async fn main() {
         if let Some(event) = draw_idle_screen(&state) {
             state.event_queue.push(event);
         }
+
+        draw_status_bar(&state);
 
         draw_circle(state.cursor_x - 30.0, state.cursor_y - 30.0, 15.0, YELLOW);
 
