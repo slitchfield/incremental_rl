@@ -1,8 +1,16 @@
 use macroquad::prelude::*;
+use macroquad::ui::{
+    hash, root_ui,
+    widgets::{self},
+};
 
 struct Resources {
     circles: f32,
     squares: f32,
+}
+
+enum UiEvent {
+    BuyCircle(f32),
 }
 
 struct GameState {
@@ -10,11 +18,13 @@ struct GameState {
     cursor_y: f32,
     screen_width: f32,
     screen_height: f32,
-
+    event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
     resources: Resources,
 }
 
-fn draw_idle_screen(state: &GameState) {
+fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
+    let mut return_event = None;
+
     // Main window
     draw_rectangle(
         10.0,
@@ -23,6 +33,19 @@ fn draw_idle_screen(state: &GameState) {
         state.screen_height - 20.0,
         LIGHTGRAY,
     );
+    widgets::Window::new(
+        hash!(),
+        vec2(10.0, 10.0),
+        vec2(0.8 * state.screen_width - 20.0, state.screen_height - 20.0),
+    )
+    .movable(false)
+    .label("Main Window")
+    .ui(&mut root_ui(), |ui| {
+        ui.label(None, "Main Window Label");
+        if ui.button(None, "Buy Circle") {
+            return_event = Some(UiEvent::BuyCircle(1.0));
+        }
+    });
 
     // Resources Window
     draw_rectangle(
@@ -32,23 +55,28 @@ fn draw_idle_screen(state: &GameState) {
         state.screen_height - 20.0,
         LIGHTGRAY,
     );
-    draw_text(
-        format!("squares: {:.0}", state.resources.squares).as_str(),
-        0.8 * state.screen_width + 15.0,
-        15.0 + 20.0,
-        20.0,
-        DARKBLUE,
-    );
-    draw_text(
-        format!("circles: {:.0}", state.resources.circles).as_str(),
-        0.8 * state.screen_width + 15.0,
-        15.0 + 20.0 + 5.0 + 20.0,
-        20.0,
-        DARKBLUE,
-    );
+    widgets::Window::new(
+        hash!(),
+        vec2(0.8 * state.screen_width + 10.0, 10.0),
+        vec2(0.2 * state.screen_width - 20.0, state.screen_height - 20.0),
+    )
+    .movable(false)
+    .label("Resource Window")
+    .ui(&mut root_ui(), |ui| {
+        ui.label(
+            None,
+            format!("Circles: {}", state.resources.circles).as_str(),
+        );
+        ui.label(
+            None,
+            format!("Squares: {}", state.resources.squares).as_str(),
+        );
+    });
+
+    return_event
 }
 
-#[macroquad::main("BasicShapes")]
+#[macroquad::main("Unnamed Incremental Roguelike")]
 async fn main() {
     info!("Starting preamble");
 
@@ -57,6 +85,7 @@ async fn main() {
         cursor_y: 0.0,
         screen_width: 1280.0,
         screen_height: 800.0,
+        event_queue: vec![],
         resources: Resources {
             circles: 0.0,
             squares: 0.0,
@@ -109,11 +138,21 @@ async fn main() {
         }
 
         // Logic
+        while let Some(event) = state.event_queue.pop() {
+            match event {
+                UiEvent::BuyCircle(new_delta) => {
+                    state.resources.circles += new_delta;
+                }
+            }
+        }
 
         // Render
         clear_background(BLACK);
 
-        draw_idle_screen(&state);
+        // draw_idle_screen contains ui elements, which can possibly return events from buttons
+        if let Some(event) = draw_idle_screen(&state) {
+            state.event_queue.push(event);
+        }
 
         draw_circle(state.cursor_x - 30.0, state.cursor_y - 30.0, 15.0, YELLOW);
 
