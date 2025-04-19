@@ -1,33 +1,67 @@
 use macroquad::prelude::*;
 use macroquad::ui::{
     hash, root_ui,
-    widgets::{self},
+    widgets::{self, Group},
 };
 
+struct Resource {
+    cur_val: f32,
+    max_val: f32,
+}
+
+impl Resource {
+    fn add_or_max(&mut self, delta: f32) {
+        let mut new_val = self.cur_val + delta;
+        if new_val > self.max_val {
+            new_val = self.max_val;
+        }
+        if new_val < 0.0 {
+            new_val = 0.0;
+        }
+        self.cur_val = new_val;
+    }
+}
+
 struct Resources {
+    energy: Resource,
     circles: f32,
     squares: f32,
 }
 
 enum UiEvent {
     BuyCircle(f32),
+    SurveySurroundings,
+}
+
+enum Location {
+    AtBase,
 }
 
 struct GameState {
-    cursor_x: f32,
-    cursor_y: f32,
     screen_width: f32,
     screen_height: f32,
+
     last_tick: f64,
     tick_duration: f64,
+
     event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
+
     resources: Resources,
+    location: Location,
 }
 
 impl GameState {
     fn idle_tick(&mut self) {
         // Placeholder, increment squares by circle count
         self.resources.squares += self.resources.circles;
+
+        // Handle Energy
+        //   Currently, when at base, recharge 1.0 unit per tick
+        match self.location {
+            Location::AtBase => {
+                self.resources.energy.add_or_max(1.0);
+            }
+        }
     }
 }
 
@@ -57,10 +91,22 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     .movable(false)
     .label("Main Window")
     .ui(&mut root_ui(), |ui| {
-        ui.label(None, "Main Window Label");
-        if ui.button(None, "Buy Circle") {
-            return_event = Some(UiEvent::BuyCircle(1.0));
-        }
+        ui.tree_node(hash!(), "First Landing", |ui| {
+            ui.separator();
+            Group::new(hash!("survey"), Vec2::new(200., 65.)).ui(ui, |ui| {
+                ui.label(Vec2::new(5., 5.), "Survey Surroundings");
+                ui.label(Vec2::new(5., 20.), &format!("{} Energy", 100));
+                if ui.button(Vec2::new(5., 38.), "Ping") {
+                    return_event = Some(UiEvent::SurveySurroundings);
+                }
+            });
+        });
+        ui.separator();
+        ui.tree_node(hash!(), "Placeholder Functions", |ui| {
+            if ui.button(None, "Buy Circle") {
+                return_event = Some(UiEvent::BuyCircle(1.0));
+            }
+        });
     });
 
     // Resources Window
@@ -119,7 +165,14 @@ fn draw_status_bar(state: &GameState) {
     .movable(false)
     .label("Status Window")
     .ui(&mut root_ui(), |ui| {
-        ui.label(None, "Status Window Lable");
+        ui.label(
+            None,
+            format!(
+                "Batteries: [{:.3} / {:.3}]",
+                state.resources.energy.cur_val, state.resources.energy.max_val
+            )
+            .as_str(),
+        );
         let tick_timer = get_time() - state.last_tick;
         ui.label(
             None,
@@ -133,14 +186,17 @@ async fn main() {
     info!("Starting preamble");
 
     let mut state: GameState = GameState {
-        cursor_x: 0.0,
-        cursor_y: 0.0,
         screen_width: 1920.0,
         screen_height: 1080.0,
         last_tick: get_time(),
-        tick_duration: 15.0f64,
+        tick_duration: 1.0f64,
         event_queue: vec![],
+        location: Location::AtBase,
         resources: Resources {
+            energy: Resource {
+                cur_val: 0.0,
+                max_val: 100.0,
+            },
             circles: 0.0,
             squares: 0.0,
         },
@@ -167,36 +223,16 @@ async fn main() {
 
     loop {
         // Input handling
-        if is_key_down(KeyCode::Up) {
-            state.cursor_y -= 1.0;
-            if state.cursor_y < 0.0 {
-                state.cursor_y = 0.0
-            }
-        }
-        if is_key_down(KeyCode::Down) {
-            state.cursor_y += 1.0;
-            if state.cursor_y > screen_height() {
-                state.cursor_y = screen_height();
-            }
-        }
-        if is_key_down(KeyCode::Left) {
-            state.cursor_x -= 1.0;
-            if state.cursor_x < 0.0 {
-                state.cursor_x = 0.0
-            }
-        }
-        if is_key_down(KeyCode::Right) {
-            state.cursor_x += 1.0;
-            if state.cursor_x > screen_width() {
-                state.cursor_x = screen_width();
-            }
-        }
 
         // Logic
         while let Some(event) = state.event_queue.pop() {
             match event {
                 UiEvent::BuyCircle(new_delta) => {
                     state.resources.circles += new_delta;
+                }
+                UiEvent::SurveySurroundings => {
+                    info!("Surveying Surroundings...");
+                    // state.survey_surroundings();
                 }
             }
         }
@@ -218,8 +254,6 @@ async fn main() {
         }
 
         draw_status_bar(&state);
-
-        draw_circle(state.cursor_x - 30.0, state.cursor_y - 30.0, 15.0, YELLOW);
 
         // Advance
         next_frame().await
