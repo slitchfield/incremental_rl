@@ -1,10 +1,51 @@
 use macroquad::prelude::*;
 
+struct Resources {
+    circles: f32,
+    squares: f32,
+}
+
 struct GameState {
     cursor_x: f32,
     cursor_y: f32,
     screen_width: f32,
     screen_height: f32,
+
+    resources: Resources,
+}
+
+fn draw_idle_screen(state: &GameState) {
+    // Main window
+    draw_rectangle(
+        10.0,
+        10.0,
+        0.8 * state.screen_width - 20.0,
+        state.screen_height - 20.0,
+        LIGHTGRAY,
+    );
+
+    // Resources Window
+    draw_rectangle(
+        0.8 * state.screen_width + 10.0,
+        10.0,
+        0.2 * state.screen_width - 20.0,
+        state.screen_height - 20.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        format!("squares: {:.0}", state.resources.squares).as_str(),
+        0.8 * state.screen_width + 15.0,
+        15.0 + 20.0,
+        20.0,
+        DARKBLUE,
+    );
+    draw_text(
+        format!("circles: {:.0}", state.resources.circles).as_str(),
+        0.8 * state.screen_width + 15.0,
+        15.0 + 20.0 + 5.0 + 20.0,
+        20.0,
+        DARKBLUE,
+    );
 }
 
 #[macroquad::main("BasicShapes")]
@@ -12,9 +53,14 @@ async fn main() {
     let mut state: GameState = GameState {
         cursor_x: 0.0,
         cursor_y: 0.0,
-        screen_width: 800.0,
-        screen_height: 600.0,
+        screen_width: 1280.0,
+        screen_height: 800.0,
+        resources: Resources {
+            circles: 0.0,
+            squares: 0.0,
+        },
     };
+
     request_new_screen_size(state.screen_width, state.screen_height);
     if screen_width() != state.screen_width {
         println!("Could not hit requested screen width");
@@ -33,8 +79,8 @@ async fn main() {
         }
         if is_key_down(KeyCode::Down) {
             state.cursor_y += 1.0;
-            if state.cursor_y > screen_width() {
-                state.cursor_y = screen_width();
+            if state.cursor_y > screen_height() {
+                state.cursor_y = screen_height();
             }
         }
         if is_key_down(KeyCode::Left) {
@@ -45,18 +91,21 @@ async fn main() {
         }
         if is_key_down(KeyCode::Right) {
             state.cursor_x += 1.0;
-            if state.cursor_x > screen_height() {
-                state.cursor_x = screen_height();
+            if state.cursor_x > screen_width() {
+                state.cursor_x = screen_width();
             }
         }
-        clear_background(RED);
 
-        draw_line(40.0, 40.0, 100.0, 200.0, 15.0, BLUE);
-        draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, GREEN);
+        // Logic
+
+        // Render
+        clear_background(BLACK);
+
+        draw_idle_screen(&state);
+
         draw_circle(state.cursor_x - 30.0, state.cursor_y - 30.0, 15.0, YELLOW);
 
-        draw_text("IT WORKS!", 20.0, 20.0, 30.0, DARKGRAY);
-
+        // Advance
         next_frame().await
     }
 }
