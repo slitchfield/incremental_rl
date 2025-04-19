@@ -50,6 +50,8 @@ fn draw_idle_screen(state: &GameState) {
 
 #[macroquad::main("BasicShapes")]
 async fn main() {
+    info!("Starting preamble");
+
     let mut state: GameState = GameState {
         cursor_x: 0.0,
         cursor_y: 0.0,
@@ -63,10 +65,20 @@ async fn main() {
 
     request_new_screen_size(state.screen_width, state.screen_height);
     if screen_width() != state.screen_width {
-        println!("Could not hit requested screen width");
+        warn!("Could not hit requested screen width");
+        warn!(
+            "\tRequested {}, Received {}",
+            state.screen_width,
+            screen_width()
+        );
     }
     if screen_height() != state.screen_height {
-        println!("Could not hit requested screen height");
+        warn!("Could not hit requested screen height");
+        warn!(
+            "\tRequested {}, Received {}",
+            state.screen_height,
+            screen_height()
+        );
     }
 
     loop {
