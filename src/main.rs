@@ -31,10 +31,18 @@ struct Resources {
 enum UiEvent {
     BuyCircle(f32),
     SurveySurroundings,
+    EmbarkLocation,
 }
 
 enum Location {
     AtBase,
+    Placeholder(u32),
+}
+
+impl Location {
+    fn generate_location(_state: &GameState) -> Location {
+        Location::Placeholder(0)
+    }
 }
 
 struct GameState {
@@ -47,7 +55,8 @@ struct GameState {
     event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
 
     resources: Resources,
-    location: Location,
+    cur_location: Location,
+    scouted_locations: Vec<Location>,
 }
 
 impl GameState {
@@ -57,11 +66,20 @@ impl GameState {
 
         // Handle Energy
         //   Currently, when at base, recharge 1.0 unit per tick
-        match self.location {
+        match self.cur_location {
             Location::AtBase => {
                 self.resources.energy.add_or_max(1.0);
             }
+            Location::Placeholder(_val) => {
+                // Currently, do nothing
+            }
         }
+    }
+
+    fn survey_surroundings(&mut self) {
+        // TODO: Check current unlocks for possible locations
+        let location = Location::generate_location(self);
+        self.scouted_locations.push(location);
     }
 }
 
@@ -105,6 +123,21 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
         ui.tree_node(hash!(), "Placeholder Functions", |ui| {
             if ui.button(None, "Buy Circle") {
                 return_event = Some(UiEvent::BuyCircle(1.0));
+            }
+        });
+        ui.separator();
+        ui.tree_node(hash!(), "Embark Locations", |ui| {
+            for location in &state.scouted_locations {
+                match location {
+                    Location::AtBase => {
+                        warn!("At Base should not show up in scouted locations");
+                    }
+                    Location::Placeholder(val) => {
+                        if ui.button(None, format!("Embark {}", val)) {
+                            return_event = Some(UiEvent::EmbarkLocation);
+                        }
+                    }
+                }
             }
         });
     });
@@ -191,7 +224,8 @@ async fn main() {
         last_tick: get_time(),
         tick_duration: 1.0f64,
         event_queue: vec![],
-        location: Location::AtBase,
+        cur_location: Location::AtBase,
+        scouted_locations: vec![],
         resources: Resources {
             energy: Resource {
                 cur_val: 0.0,
@@ -204,7 +238,7 @@ async fn main() {
 
     request_new_screen_size(state.screen_width, state.screen_height);
     next_frame().await;
-    if screen_width() != state.screen_width {
+    if (screen_width() - state.screen_width).abs() <= 1.0 {
         warn!("Could not hit requested screen width");
         warn!(
             "\tRequested {}, Received {}",
@@ -212,7 +246,7 @@ async fn main() {
             screen_width()
         );
     }
-    if screen_height() != state.screen_height {
+    if (screen_height() - state.screen_height).abs() <= 1.0 {
         warn!("Could not hit requested screen height");
         warn!(
             "\tRequested {}, Received {}",
@@ -223,20 +257,26 @@ async fn main() {
 
     loop {
         // Input handling
-
-        // Logic
         while let Some(event) = state.event_queue.pop() {
             match event {
                 UiEvent::BuyCircle(new_delta) => {
                     state.resources.circles += new_delta;
                 }
                 UiEvent::SurveySurroundings => {
-                    info!("Surveying Surroundings...");
-                    // state.survey_surroundings();
+                    if state.resources.energy.cur_val >= 100.0 {
+                        // TODO: Abstract cost of surveying
+                        state.resources.energy.add_or_max(-100.0);
+                        info!("Surveying Surroundings...");
+                        state.survey_surroundings();
+                    }
                 }
+                UiEvent::EmbarkLocation => todo!(),
             }
         }
 
+        // TODO: Re-check screensize periodically OR find event based system
+
+        // Logic
         let cur_time = get_time();
         if (cur_time - state.last_tick) >= state.tick_duration {
             state.idle_tick();
