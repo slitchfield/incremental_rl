@@ -31,17 +31,36 @@ struct Resources {
 enum UiEvent {
     BuyCircle(f32),
     SurveySurroundings,
-    EmbarkLocation,
+    EmbarkLocation(Location),
 }
 
+#[derive(Clone, Copy, PartialEq)]
 enum Location {
     AtBase,
-    Placeholder(u32),
+    Embark(u32),
 }
 
 impl Location {
     fn generate_location(_state: &GameState) -> Location {
-        Location::Placeholder(0)
+        Location::Embark(100)
+    }
+}
+
+struct EmbarkState {
+    _width: u32,
+    _height: u32,
+    _player_x: u32,
+    _player_y: u32,
+}
+
+impl Default for EmbarkState {
+    fn default() -> Self {
+        EmbarkState {
+            _width: 100,
+            _height: 100,
+            _player_x: 100 / 2,
+            _player_y: 100 / 2,
+        }
     }
 }
 
@@ -49,7 +68,7 @@ impl Location {
 enum GameScreen {
     _Title,
     Idle,
-    Embark,
+    Embark(Location),
 }
 
 struct GameState {
@@ -66,6 +85,9 @@ struct GameState {
     resources: Resources,
     cur_location: Location,
     scouted_locations: Vec<Location>,
+
+    // Embark specific state
+    _embark_state: EmbarkState,
 }
 
 impl GameState {
@@ -79,7 +101,7 @@ impl GameState {
             Location::AtBase => {
                 self.resources.energy.add_or_max(1.0);
             }
-            Location::Placeholder(_val) => {
+            Location::Embark(_val) => {
                 // Currently, do nothing
             }
         }
@@ -141,9 +163,10 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
                     Location::AtBase => {
                         warn!("At Base should not show up in scouted locations");
                     }
-                    Location::Placeholder(val) => {
+                    Location::Embark(val) => {
                         if ui.button(None, format!("Embark {}", val)) {
-                            return_event = Some(UiEvent::EmbarkLocation);
+                            return_event = Some(UiEvent::EmbarkLocation(*location));
+                            // Copies if necessary
                         }
                     }
                 }
@@ -259,6 +282,8 @@ async fn main() {
             circles: 0.0,
             squares: 0.0,
         },
+
+        _embark_state: EmbarkState::default(),
     };
 
     request_new_screen_size(state.screen_width, state.screen_height);
@@ -313,9 +338,10 @@ async fn main() {
                         state.survey_surroundings();
                     }
                 }
-                UiEvent::EmbarkLocation => {
+                UiEvent::EmbarkLocation(location) => {
                     // Switch to embark/roguelike mode
-                    state.next_game_mode = Some(GameScreen::Embark);
+                    // TODO: Hook this up with the scouted location
+                    state.next_game_mode = Some(GameScreen::Embark(location));
                 }
             }
         }
@@ -331,14 +357,21 @@ async fn main() {
 
         // Started new embark! Do logic required to possibly build new location
         //   and establish state
-        if state.next_game_mode == Some(GameScreen::Embark) {
-            info!("Beginning embark...");
-            state.next_game_mode = None;
-            state.game_mode = GameScreen::Embark;
-        } else if state.next_game_mode == Some(GameScreen::Idle) {
-            info!("Going back to idle...");
-            state.next_game_mode = None;
-            state.game_mode = GameScreen::Idle;
+        match state.next_game_mode {
+            None => {}
+            Some(screen) => match screen {
+                GameScreen::_Title => todo!(),
+                GameScreen::Idle => {
+                    info!("Going back to idle...");
+                    state.next_game_mode = None;
+                    state.game_mode = GameScreen::Idle;
+                }
+                GameScreen::Embark(location) => {
+                    info!("Beginning embark...");
+                    state.next_game_mode = None;
+                    state.game_mode = GameScreen::Embark(location);
+                }
+            },
         }
 
         // Render
@@ -352,7 +385,7 @@ async fn main() {
                     state.event_queue.push(event);
                 }
             }
-            GameScreen::Embark => {
+            GameScreen::Embark(_location) => {
                 clear_background(DARKGREEN);
                 draw_embark_screen(&state);
             }
