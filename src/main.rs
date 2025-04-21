@@ -45,6 +45,12 @@ impl Location {
     }
 }
 
+enum GameScreen {
+    _Title,
+    Idle,
+    Embark,
+}
+
 struct GameState {
     screen_width: f32,
     screen_height: f32,
@@ -52,6 +58,7 @@ struct GameState {
     last_tick: f64,
     tick_duration: f64,
 
+    game_mode: GameScreen,
     event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
 
     resources: Resources,
@@ -174,6 +181,10 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     return_event
 }
 
+fn draw_embark_screen(_state: &GameState) {
+    // Draw RL screen
+}
+
 fn draw_status_bar(state: &GameState) {
     let gutter = 10.0;
     let _main_width = 0.8;
@@ -221,14 +232,18 @@ async fn main() {
     let mut state: GameState = GameState {
         screen_width: 1920.0,
         screen_height: 1080.0,
+
         last_tick: get_time(),
         tick_duration: 1.0f64,
+
         event_queue: vec![],
+        game_mode: GameScreen::Idle,
+
         cur_location: Location::AtBase,
         scouted_locations: vec![],
         resources: Resources {
             energy: Resource {
-                cur_val: 0.0,
+                cur_val: 100.0,
                 max_val: 100.0,
             },
             circles: 0.0,
@@ -257,6 +272,11 @@ async fn main() {
 
     loop {
         // Input handling
+        if is_key_down(KeyCode::Q) {
+            break;
+        }
+
+        let mut new_embark = false;
         while let Some(event) = state.event_queue.pop() {
             match event {
                 UiEvent::BuyCircle(new_delta) => {
@@ -270,7 +290,11 @@ async fn main() {
                         state.survey_surroundings();
                     }
                 }
-                UiEvent::EmbarkLocation => todo!(),
+                UiEvent::EmbarkLocation => {
+                    // Switch to embark/roguelike mode
+                    state.game_mode = GameScreen::Embark;
+                    new_embark = true;
+                }
             }
         }
 
@@ -285,12 +309,27 @@ async fn main() {
             state.last_tick = cur_time;
         }
 
-        // Render
-        clear_background(BLACK);
+        // Started new embark! Do logic required to possibly build new location
+        //   and establish state
+        if new_embark {
+            info!("Beginning embark...");
+        }
 
-        // draw_idle_screen contains ui elements, which can possibly return events from buttons
-        if let Some(event) = draw_idle_screen(&state) {
-            state.event_queue.push(event);
+        // Render
+
+        match state.game_mode {
+            GameScreen::_Title => todo!(),
+            GameScreen::Idle => {
+                clear_background(BLACK);
+                // draw_idle_screen contains ui elements, which can possibly return events from buttons
+                if let Some(event) = draw_idle_screen(&state) {
+                    state.event_queue.push(event);
+                }
+            }
+            GameScreen::Embark => {
+                clear_background(DARKGREEN);
+                draw_embark_screen(&state);
+            }
         }
 
         draw_status_bar(&state);
