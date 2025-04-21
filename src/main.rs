@@ -45,6 +45,7 @@ impl Location {
     }
 }
 
+#[derive(PartialEq)]
 enum GameScreen {
     _Title,
     Idle,
@@ -59,6 +60,7 @@ struct GameState {
     tick_duration: f64,
 
     game_mode: GameScreen,
+    next_game_mode: Option<GameScreen>,
     event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
 
     resources: Resources,
@@ -238,6 +240,7 @@ async fn main() {
 
         event_queue: vec![],
         game_mode: GameScreen::Idle,
+        next_game_mode: None,
 
         cur_location: Location::AtBase,
         scouted_locations: vec![],
@@ -272,11 +275,20 @@ async fn main() {
 
     loop {
         // Input handling
+
+        // Check if screen size has changed
+        // TODO: Don't do this every frame!
+        state.screen_height = screen_height();
+        state.screen_width = screen_width();
+
         if is_key_down(KeyCode::Q) {
             break;
         }
 
-        let mut new_embark = false;
+        if is_key_down(KeyCode::I) {
+            state.next_game_mode = Some(GameScreen::Idle);
+        }
+
         while let Some(event) = state.event_queue.pop() {
             match event {
                 UiEvent::BuyCircle(new_delta) => {
@@ -292,13 +304,10 @@ async fn main() {
                 }
                 UiEvent::EmbarkLocation => {
                     // Switch to embark/roguelike mode
-                    state.game_mode = GameScreen::Embark;
-                    new_embark = true;
+                    state.next_game_mode = Some(GameScreen::Embark);
                 }
             }
         }
-
-        // TODO: Re-check screensize periodically OR find event based system
 
         // Logic
         let cur_time = get_time();
@@ -311,8 +320,14 @@ async fn main() {
 
         // Started new embark! Do logic required to possibly build new location
         //   and establish state
-        if new_embark {
+        if state.next_game_mode == Some(GameScreen::Embark) {
             info!("Beginning embark...");
+            state.next_game_mode = None;
+            state.game_mode = GameScreen::Embark;
+        } else if state.next_game_mode == Some(GameScreen::Idle) {
+            info!("Going back to idle...");
+            state.next_game_mode = None;
+            state.game_mode = GameScreen::Idle;
         }
 
         // Render
