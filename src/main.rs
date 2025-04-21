@@ -222,7 +222,14 @@ fn draw_status_bar(state: &GameState) {
         let tick_timer = get_time() - state.last_tick;
         ui.label(
             None,
-            format!("[{:.3} / {:.3}]", tick_timer, state.tick_duration).as_str(),
+            format!(
+                "[{:.3} / {:.3}]\t|\t{:.6}s/frame => {:.6} fps",
+                tick_timer,
+                state.tick_duration,
+                get_frame_time(),
+                1.0 / get_frame_time()
+            )
+            .as_str(),
         );
     });
 }
@@ -273,13 +280,17 @@ async fn main() {
         );
     }
 
+    let mut frame_counter: usize = 0usize;
+
     loop {
         // Input handling
 
-        // Check if screen size has changed
-        // TODO: Don't do this every frame!
-        state.screen_height = screen_height();
-        state.screen_width = screen_width();
+        // Check if screen size has changed every .1 seconds
+        // TODO: Check and enforce framerate
+        if frame_counter % 6 == 0usize {
+            state.screen_height = screen_height();
+            state.screen_width = screen_width();
+        }
 
         if is_key_down(KeyCode::Q) {
             break;
@@ -350,6 +361,7 @@ async fn main() {
         draw_status_bar(&state);
 
         // Advance
+        frame_counter += 1;
         next_frame().await
     }
 }
