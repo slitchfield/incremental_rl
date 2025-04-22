@@ -1,7 +1,6 @@
 pub mod game;
 pub mod render;
 
-use game::GameScreen;
 use game::GameState;
 use game::UiEvent;
 
@@ -47,12 +46,12 @@ async fn main() {
             platform_event_queue.push(UiEvent::Resize(screen_width(), screen_height()));
         }
 
+        // TODO: Gather all pressed keys to pass?
         if is_key_down(KeyCode::Q) {
-            platform_event_queue.push(UiEvent::Quit);
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Q));
         }
-
         if is_key_down(KeyCode::I) {
-            platform_event_queue.push(UiEvent::StateTransition(GameScreen::Idle));
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::I));
         }
 
         state.process_inputs(&mut platform_event_queue);

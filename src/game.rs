@@ -3,6 +3,7 @@ use macroquad::prelude::*;
 pub enum UiEvent {
     BuyCircle(f32),
     EmbarkLocation(Location),
+    KeyPress(KeyCode),
     Quit,
     Resize(f32, f32),
     StateTransition(GameScreen),
@@ -143,6 +144,20 @@ impl GameState {
         self.scouted_locations.push(location);
     }
 
+    pub fn process_keypress(&mut self, keycode: KeyCode) {
+        match keycode {
+            KeyCode::I => {
+                self.next_game_mode = Some(GameScreen::Idle);
+            }
+            KeyCode::Q => {
+                self.exit_requested = true;
+            }
+            _ => {
+                warn!("Unhandled keycode: {:?}", keycode);
+            }
+        }
+    }
+
     pub fn process_inputs(&mut self, events: &mut Vec<UiEvent>) {
         while let Some(event) = events.pop() {
             match event {
@@ -152,6 +167,9 @@ impl GameState {
                 UiEvent::EmbarkLocation(location) => {
                     // Switch to embark/roguelike mode
                     self.next_game_mode = Some(GameScreen::Embark(location));
+                }
+                UiEvent::KeyPress(key) => {
+                    self.process_keypress(key);
                 }
                 UiEvent::Quit => {
                     self.exit_requested = true;
