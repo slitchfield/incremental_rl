@@ -30,8 +30,10 @@ struct Resources {
 
 enum UiEvent {
     BuyCircle(f32),
-    SurveySurroundings,
     EmbarkLocation(Location),
+    Quit,
+    Resize(f32, f32),
+    SurveySurroundings,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -42,7 +44,7 @@ enum Location {
 
 impl Location {
     fn generate_location(_state: &GameState) -> Location {
-        Location::Embark(100)
+        Location::Embark(50)
     }
 }
 
@@ -72,6 +74,8 @@ enum GameScreen {
 }
 
 struct GameState {
+    exit_requested: bool,
+
     screen_width: f32,
     screen_height: f32,
 
@@ -80,7 +84,6 @@ struct GameState {
 
     game_mode: GameScreen,
     next_game_mode: Option<GameScreen>,
-    event_queue: Vec<UiEvent>, // TODO: Consider staticly allocated backing
 
     resources: Resources,
     cur_location: Location,
@@ -88,6 +91,36 @@ struct GameState {
 
     // Embark specific state
     _embark_state: EmbarkState,
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        GameState {
+            exit_requested: false,
+
+            screen_width: 1920.0,
+            screen_height: 1080.0,
+
+            last_tick: get_time(),
+            tick_duration: 1.0f64,
+
+            game_mode: GameScreen::Idle,
+            next_game_mode: None,
+
+            cur_location: Location::AtBase,
+            scouted_locations: vec![],
+            resources: Resources {
+                energy: Resource {
+                    cur_val: 100.0,
+                    max_val: 100.0,
+                },
+                circles: 0.0,
+                squares: 0.0,
+            },
+
+            _embark_state: EmbarkState::default(),
+        }
+    }
 }
 
 impl GameState {
@@ -111,6 +144,35 @@ impl GameState {
         // TODO: Check current unlocks for possible locations
         let location = Location::generate_location(self);
         self.scouted_locations.push(location);
+    }
+
+    fn process_inputs(&mut self, events: &mut Vec<UiEvent>) {
+        while let Some(event) = events.pop() {
+            match event {
+                UiEvent::BuyCircle(new_delta) => {
+                    self.resources.circles += new_delta;
+                }
+                UiEvent::EmbarkLocation(location) => {
+                    // Switch to embark/roguelike mode
+                    self.next_game_mode = Some(GameScreen::Embark(location));
+                }
+                UiEvent::Quit => {
+                    self.exit_requested = true;
+                }
+                UiEvent::Resize(w, h) => {
+                    self.screen_width = w;
+                    self.screen_height = h;
+                }
+                UiEvent::SurveySurroundings => {
+                    if self.resources.energy.cur_val >= 100.0 {
+                        // TODO: Abstract cost of surveying
+                        self.resources.energy.add_or_max(-100.0);
+                        info!("Surveying Surroundings...");
+                        self.survey_surroundings();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -206,8 +268,30 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     return_event
 }
 
-fn draw_embark_screen(_state: &GameState) {
+fn draw_embark_screen(state: &GameState) {
     // Draw RL screen
+    let gutter = 10.0;
+    let main_width = 1.0;
+    let _res_width = 0.2;
+    let height = 0.9;
+
+    draw_rectangle(
+        gutter,
+        gutter,
+        main_width * state.screen_width - 2.0 * gutter,
+        height * state.screen_height - 2.0 * gutter,
+        LIGHTGRAY,
+    );
+
+    let cur_location = state.cur_location;
+
+    if let Location::Embark(embark_val) = cur_location {
+        let x = main_width * state.screen_width / 2.0;
+        let y = height * state.screen_height / 2.0;
+        let r = embark_val as f32;
+        info!("Drawing circle ({}, {}, {})", x, y, r);
+        draw_circle(x, y, r, RED);
+    }
 }
 
 fn draw_status_bar(state: &GameState) {
@@ -261,30 +345,9 @@ fn draw_status_bar(state: &GameState) {
 async fn main() {
     info!("Starting preamble");
 
-    let mut state: GameState = GameState {
-        screen_width: 1920.0,
-        screen_height: 1080.0,
+    let mut state: GameState = GameState::default();
 
-        last_tick: get_time(),
-        tick_duration: 1.0f64,
-
-        event_queue: vec![],
-        game_mode: GameScreen::Idle,
-        next_game_mode: None,
-
-        cur_location: Location::AtBase,
-        scouted_locations: vec![],
-        resources: Resources {
-            energy: Resource {
-                cur_val: 100.0,
-                max_val: 100.0,
-            },
-            circles: 0.0,
-            squares: 0.0,
-        },
-
-        _embark_state: EmbarkState::default(),
-    };
+    let mut platform_event_queue: Vec<UiEvent> = vec![];
 
     request_new_screen_size(state.screen_width, state.screen_height);
     next_frame().await;
@@ -313,37 +376,21 @@ async fn main() {
         // Check if screen size has changed every .1 seconds
         // TODO: Check and enforce framerate
         if frame_counter % 6 == 0usize {
-            state.screen_height = screen_height();
-            state.screen_width = screen_width();
+            platform_event_queue.push(UiEvent::Resize(screen_width(), screen_height()));
         }
 
         if is_key_down(KeyCode::Q) {
-            break;
+            platform_event_queue.push(UiEvent::Quit);
         }
 
         if is_key_down(KeyCode::I) {
             state.next_game_mode = Some(GameScreen::Idle);
         }
 
-        while let Some(event) = state.event_queue.pop() {
-            match event {
-                UiEvent::BuyCircle(new_delta) => {
-                    state.resources.circles += new_delta;
-                }
-                UiEvent::SurveySurroundings => {
-                    if state.resources.energy.cur_val >= 100.0 {
-                        // TODO: Abstract cost of surveying
-                        state.resources.energy.add_or_max(-100.0);
-                        info!("Surveying Surroundings...");
-                        state.survey_surroundings();
-                    }
-                }
-                UiEvent::EmbarkLocation(location) => {
-                    // Switch to embark/roguelike mode
-                    // TODO: Hook this up with the scouted location
-                    state.next_game_mode = Some(GameScreen::Embark(location));
-                }
-            }
+        state.process_inputs(&mut platform_event_queue);
+
+        if state.exit_requested {
+            break;
         }
 
         // Logic
@@ -364,11 +411,13 @@ async fn main() {
                 GameScreen::Idle => {
                     info!("Going back to idle...");
                     state.next_game_mode = None;
+                    state.cur_location = Location::AtBase;
                     state.game_mode = GameScreen::Idle;
                 }
                 GameScreen::Embark(location) => {
                     info!("Beginning embark...");
                     state.next_game_mode = None;
+                    state.cur_location = location;
                     state.game_mode = GameScreen::Embark(location);
                 }
             },
@@ -382,7 +431,7 @@ async fn main() {
                 clear_background(BLACK);
                 // draw_idle_screen contains ui elements, which can possibly return events from buttons
                 if let Some(event) = draw_idle_screen(&state) {
-                    state.event_queue.push(event);
+                    platform_event_queue.push(event);
                 }
             }
             GameScreen::Embark(_location) => {
