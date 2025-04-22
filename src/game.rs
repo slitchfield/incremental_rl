@@ -37,8 +37,10 @@ pub struct Resources {
 pub struct EmbarkState {
     _width: u32,
     _height: u32,
-    _player_x: u32,
-    _player_y: u32,
+    pub player_x: u32,
+    pub player_y: u32,
+    del_x: Option<f32>,
+    del_y: Option<f32>,
 }
 
 impl Default for EmbarkState {
@@ -46,8 +48,10 @@ impl Default for EmbarkState {
         EmbarkState {
             _width: 100,
             _height: 100,
-            _player_x: 100 / 2,
-            _player_y: 100 / 2,
+            player_x: 100 / 2,
+            player_y: 100 / 2,
+            del_x: None,
+            del_y: None,
         }
     }
 }
@@ -88,7 +92,7 @@ pub struct GameState {
     pub scouted_locations: Vec<Location>,
 
     // Embark specific state
-    pub _embark_state: EmbarkState,
+    pub embark_state: EmbarkState,
 }
 
 impl Default for GameState {
@@ -116,7 +120,7 @@ impl Default for GameState {
                 squares: 0.0,
             },
 
-            _embark_state: EmbarkState::default(),
+            embark_state: EmbarkState::default(),
         }
     }
 }
@@ -151,6 +155,18 @@ impl GameState {
             }
             KeyCode::Q => {
                 self.exit_requested = true;
+            }
+            KeyCode::Up => {
+                self.embark_state.del_y = Some(-1.0);
+            }
+            KeyCode::Down => {
+                self.embark_state.del_y = Some(1.0);
+            }
+            KeyCode::Left => {
+                self.embark_state.del_x = Some(-1.0);
+            }
+            KeyCode::Right => {
+                self.embark_state.del_x = Some(1.0);
             }
             _ => {
                 warn!("Unhandled keycode: {:?}", keycode);
@@ -210,9 +226,35 @@ impl GameState {
                     info!("Beginning embark...");
                     self.next_game_mode = None;
                     self.cur_location = location;
+
+                    let x = self.screen_width / 2.0;
+                    let y = self.screen_height / 2.0;
+                    self.embark_state.player_x = x as u32;
+                    self.embark_state.player_y = y as u32;
                     self.game_mode = GameScreen::Embark(self.cur_location);
                 }
             },
+        }
+
+        if let GameScreen::Embark(_location) = self.game_mode {
+            if let Some(del_x) = self.embark_state.del_x {
+                let new_val = self
+                    .embark_state
+                    .player_x
+                    .checked_add_signed(del_x as i32)
+                    .unwrap();
+                self.embark_state.player_x = new_val;
+                self.embark_state.del_x = None;
+            }
+            if let Some(del_y) = self.embark_state.del_y {
+                let new_val = self
+                    .embark_state
+                    .player_y
+                    .checked_add_signed(del_y as i32)
+                    .unwrap();
+                self.embark_state.player_y = new_val;
+                self.embark_state.del_y = None;
+            }
         }
 
         // Process the idle tick

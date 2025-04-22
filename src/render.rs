@@ -118,13 +118,18 @@ fn draw_embark_screen(state: &GameState) {
 
     let cur_location = state.cur_location;
 
+    let embark_params;
     if let Location::Embark(embark_val) = cur_location {
-        let x = main_width * state.screen_width / 2.0;
-        let y = height * state.screen_height / 2.0;
-        let r = embark_val as f32;
-        info!("Drawing circle ({}, {}, {})", x, y, r);
-        draw_circle(x, y, r, RED);
+        embark_params = embark_val;
+    } else {
+        error!("Entered draw_embark_screen without a valid inner embark state");
+        unimplemented!(); // Handle error case
     }
+
+    let x = state.embark_state.player_x as f32;
+    let y = state.embark_state.player_y as f32;
+    let r = embark_params as f32;
+    draw_circle(x, y, r, RED);
 }
 
 fn draw_status_bar(state: &GameState) {

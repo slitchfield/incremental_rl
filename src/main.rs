@@ -47,11 +47,23 @@ async fn main() {
         }
 
         // TODO: Gather all pressed keys to pass?
-        if is_key_down(KeyCode::Q) {
+        if is_key_pressed(KeyCode::Q) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::Q));
         }
-        if is_key_down(KeyCode::I) {
+        if is_key_pressed(KeyCode::I) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::I));
+        }
+        if is_key_down(KeyCode::Right) {
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Right));
+        }
+        if is_key_pressed(KeyCode::Left) {
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Left));
+        }
+        if is_key_pressed(KeyCode::Up) {
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Up));
+        }
+        if is_key_down(KeyCode::Down) {
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Down));
         }
 
         state.process_inputs(&mut platform_event_queue);
