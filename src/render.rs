@@ -59,7 +59,7 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
                         warn!("At Base should not show up in scouted locations");
                     }
                     Location::Embark(val) => {
-                        if ui.button(None, format!("Embark {}", val)) {
+                        if ui.button(None, format!("Embark {:?}", val)) {
                             return_event = Some(UiEvent::EmbarkLocation(*location));
                             // Copies if necessary
                         }
@@ -125,10 +125,10 @@ fn draw_embark_screen(state: &GameState) {
         error!("Entered draw_embark_screen without a valid inner embark state");
         unimplemented!(); // Handle error case
     }
-
+    
     let x = state.embark_state.player_x as f32;
     let y = state.embark_state.player_y as f32;
-    let r = embark_params as f32;
+    let r = embark_params.dims.x as f32;
     draw_circle(x, y, r, RED);
 }
 

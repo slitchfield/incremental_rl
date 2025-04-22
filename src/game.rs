@@ -56,15 +56,30 @@ impl Default for EmbarkState {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EmbarkParams {
+    pub seed: usize,
+    pub dims: Vec2,
+}
+
+impl Default for EmbarkParams {
+    fn default() -> Self {
+        EmbarkParams {
+            seed: 0usize,
+            dims: vec2(100.0, 100.0)
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum Location {
     AtBase,
-    Embark(u32),
+    Embark(EmbarkParams),
 }
 
 impl Location {
     fn generate_location(_state: &GameState) -> Location {
-        Location::Embark(50)
+        Location::Embark(EmbarkParams::default())
     }
 }
 
