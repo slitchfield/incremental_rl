@@ -5,6 +5,7 @@ pub enum UiEvent {
     EmbarkLocation(Location),
     Quit,
     Resize(f32, f32),
+    StateTransition(GameScreen),
     SurveySurroundings,
 }
 
@@ -62,7 +63,7 @@ impl Location {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum GameScreen {
     _Title,
     Idle,
@@ -159,6 +160,9 @@ impl GameState {
                     self.screen_width = w;
                     self.screen_height = h;
                 }
+                UiEvent::StateTransition(next_game_screen) => {
+                    self.next_game_mode = Some(next_game_screen);
+                }
                 UiEvent::SurveySurroundings => {
                     if self.resources.energy.cur_val >= 100.0 {
                         // TODO: Abstract cost of surveying
@@ -168,6 +172,38 @@ impl GameState {
                     }
                 }
             }
+        }
+    }
+
+    pub fn process_frame(&mut self) {
+        // Started new embark! Do logic required to possibly build new location
+        //   and establish state
+        match self.next_game_mode {
+            None => {}
+            Some(screen) => match screen {
+                GameScreen::_Title => todo!(),
+                GameScreen::Idle => {
+                    info!("Going back to idle...");
+                    self.next_game_mode = None;
+                    self.cur_location = Location::AtBase;
+                    self.game_mode = GameScreen::Idle;
+                }
+                GameScreen::Embark(location) => {
+                    info!("Beginning embark...");
+                    self.next_game_mode = None;
+                    self.cur_location = location;
+                    self.game_mode = GameScreen::Embark(self.cur_location);
+                }
+            },
+        }
+
+        // Process the idle tick
+        let cur_time = get_time();
+        if (cur_time - self.last_tick) >= self.tick_duration {
+            self.idle_tick();
+
+            // Set last tick time
+            self.last_tick = cur_time;
         }
     }
 }
