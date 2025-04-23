@@ -7,6 +7,7 @@ use macroquad::ui::{
 use crate::game::GameScreen;
 use crate::game::GameState;
 use crate::game::Location;
+use crate::game::Tile;
 use crate::game::UiEvent;
 
 fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
@@ -125,10 +126,43 @@ fn draw_embark_screen(state: &GameState) {
         error!("Entered draw_embark_screen without a valid inner embark state");
         unimplemented!(); // Handle error case
     }
-    
+
+    // Render the tilemap!
+    // TODO: figure this out without a copy every time?
+    let local_tilemap;
+    if let Some(tilemap) = &state.embark_state.tilemap {
+        local_tilemap = tilemap;
+    } else {
+        todo!()
+    }
+
+    let tile_width = 5.0f32;
+    let tile_height = 5.0f32;
+    let center_x = state.screen_width / 2.0;
+    let center_y = height * state.screen_height / 2.0;
+    let upper_left_x = center_x - tile_width * local_tilemap.width / 2.0;
+    let upper_left_y = center_y - tile_height * local_tilemap.height / 2.0;
+
+    for r in 0..(local_tilemap.height as u32) {
+        let tile_y = upper_left_y + (r as f32) * tile_height;
+        for c in 0..(local_tilemap.width as u32) {
+            let tile_x = upper_left_x + (c as f32) * tile_width;
+
+            let tile_index: usize = (r * (local_tilemap.width as u32) + c).try_into().unwrap();
+            match local_tilemap.tiles[tile_index] {
+                Tile::Wall => {
+                    draw_rectangle(tile_x, tile_y, tile_width, tile_height, BLACK);
+                }
+                Tile::Empty => {
+                    draw_rectangle(tile_x, tile_y, tile_width, tile_height, WHITE);
+                }
+            }
+        }
+    }
+
     let x = state.embark_state.player_x as f32;
     let y = state.embark_state.player_y as f32;
-    let r = embark_params.dims.x as f32;
+    let r = embark_params.dims.x;
     draw_circle(x, y, r, RED);
 }
 

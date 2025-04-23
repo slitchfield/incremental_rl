@@ -34,24 +34,34 @@ pub struct Resources {
     pub squares: f32,
 }
 
+pub enum Tile {
+    Empty,
+    Wall,
+}
+
+#[derive(Default)]
+pub struct TileMap {
+    pub width: f32,
+    pub height: f32,
+    pub tiles: Vec<Tile>,
+}
+
 pub struct EmbarkState {
-    _width: u32,
-    _height: u32,
     pub player_x: u32,
     pub player_y: u32,
     del_x: Option<f32>,
     del_y: Option<f32>,
+    pub tilemap: Option<TileMap>,
 }
 
 impl Default for EmbarkState {
     fn default() -> Self {
         EmbarkState {
-            _width: 100,
-            _height: 100,
             player_x: 100 / 2,
             player_y: 100 / 2,
             del_x: None,
             del_y: None,
+            tilemap: None,
         }
     }
 }
@@ -66,7 +76,7 @@ impl Default for EmbarkParams {
     fn default() -> Self {
         EmbarkParams {
             seed: 0usize,
-            dims: vec2(100.0, 100.0)
+            dims: vec2(100.0, 100.0),
         }
     }
 }
@@ -163,6 +173,37 @@ impl GameState {
         self.scouted_locations.push(location);
     }
 
+    fn generate_tilemap(&self) -> TileMap {
+        let mut tilemap = TileMap::default();
+
+        let embark_params;
+        if let Location::Embark(params) = self.cur_location {
+            embark_params = params;
+        } else {
+            todo!("Handle cur_location/tilemap gen disagreement");
+        }
+
+        tilemap.width = embark_params.dims.x;
+        tilemap.height = embark_params.dims.y;
+
+        for x in 0..(tilemap.width as u32) {
+            for y in 0..(tilemap.height as u32) {
+                if y == 0
+                    || (y == (tilemap.height as u32) - 1)
+                    || x == 0
+                    || (x == (tilemap.width as u32) - 1)
+                    || x == y
+                {
+                    tilemap.tiles.push(Tile::Wall);
+                } else {
+                    tilemap.tiles.push(Tile::Empty);
+                }
+            }
+        }
+
+        tilemap
+    }
+
     pub fn process_keypress(&mut self, keycode: KeyCode) {
         match keycode {
             KeyCode::I => {
@@ -235,6 +276,9 @@ impl GameState {
                     info!("Going back to idle...");
                     self.next_game_mode = None;
                     self.cur_location = Location::AtBase;
+
+                    self.embark_state = EmbarkState::default();
+
                     self.game_mode = GameScreen::Idle;
                 }
                 GameScreen::Embark(location) => {
@@ -246,6 +290,9 @@ impl GameState {
                     let y = self.screen_height / 2.0;
                     self.embark_state.player_x = x as u32;
                     self.embark_state.player_y = y as u32;
+
+                    self.embark_state.tilemap = Some(self.generate_tilemap());
+
                     self.game_mode = GameScreen::Embark(self.cur_location);
                 }
             },
