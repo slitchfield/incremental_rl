@@ -97,7 +97,7 @@ impl Location {
 pub enum GameScreen {
     _Title,
     Idle,
-    Embark(Location),
+    Embark,
 }
 
 pub struct GameState {
@@ -111,6 +111,7 @@ pub struct GameState {
 
     pub game_mode: GameScreen,
     pub next_game_mode: Option<GameScreen>,
+    pub next_location: Option<Location>,
 
     pub resources: Resources,
     pub cur_location: Location,
@@ -133,6 +134,7 @@ impl Default for GameState {
 
             game_mode: GameScreen::Idle,
             next_game_mode: None,
+            next_location: None,
 
             cur_location: Location::AtBase,
             scouted_locations: vec![],
@@ -204,6 +206,7 @@ impl GameState {
         tilemap
     }
 
+    // Translate received keypresses into a potential state update
     pub fn process_keypress(&mut self, keycode: KeyCode) {
         match keycode {
             KeyCode::I => {
@@ -230,6 +233,10 @@ impl GameState {
         }
     }
 
+    // Currently, all inputs arive as `UiEvent` variants
+    //   Generally, stash desired update separately from actual state
+    //   for implementation in `process_frame()`. Most state updates
+    //   wrapped in an `Option<>` to indicate liveness.
     pub fn process_inputs(&mut self, events: &mut Vec<UiEvent>) {
         while let Some(event) = events.pop() {
             match event {
@@ -238,7 +245,8 @@ impl GameState {
                 }
                 UiEvent::EmbarkLocation(location) => {
                     // Switch to embark/roguelike mode
-                    self.next_game_mode = Some(GameScreen::Embark(location));
+                    self.next_game_mode = Some(GameScreen::Embark);
+                    self.next_location = Some(location);
                 }
                 UiEvent::KeyPress(key) => {
                     self.process_keypress(key);
@@ -270,35 +278,45 @@ impl GameState {
         //   and establish state
         match self.next_game_mode {
             None => {}
-            Some(screen) => match screen {
-                GameScreen::_Title => todo!(),
-                GameScreen::Idle => {
-                    info!("Going back to idle...");
-                    self.next_game_mode = None;
-                    self.cur_location = Location::AtBase;
+            Some(screen) => {
+                match screen {
+                    GameScreen::_Title => todo!(),
+                    GameScreen::Idle => {
+                        info!("Going back to idle...");
+                        self.next_game_mode = None;
+                        self.cur_location = Location::AtBase;
 
-                    self.embark_state = EmbarkState::default();
+                        self.embark_state = EmbarkState::default();
 
-                    self.game_mode = GameScreen::Idle;
+                        self.game_mode = GameScreen::Idle;
+                    }
+                    GameScreen::Embark => {
+                        info!("Beginning embark...");
+                        self.next_game_mode = None;
+                        self.cur_location = self.next_location.unwrap();
+                        self.next_location = None;
+
+                        let x: f32;
+                        let y: f32;
+                        if let Location::Embark(params) = self.cur_location {
+                            x = params.dims.x / 2.0;
+                            y = params.dims.y / 2.0;
+                        } else {
+                            todo!("Resolve disagreement between Gamescreen::Embark and Location::Embark")
+                        }
+
+                        self.embark_state.player_x = x as u32;
+                        self.embark_state.player_y = y as u32;
+
+                        self.embark_state.tilemap = Some(self.generate_tilemap());
+
+                        self.game_mode = GameScreen::Embark;
+                    }
                 }
-                GameScreen::Embark(location) => {
-                    info!("Beginning embark...");
-                    self.next_game_mode = None;
-                    self.cur_location = location;
-
-                    let x = self.screen_width / 2.0;
-                    let y = self.screen_height / 2.0;
-                    self.embark_state.player_x = x as u32;
-                    self.embark_state.player_y = y as u32;
-
-                    self.embark_state.tilemap = Some(self.generate_tilemap());
-
-                    self.game_mode = GameScreen::Embark(self.cur_location);
-                }
-            },
+            }
         }
 
-        if let GameScreen::Embark(_location) = self.game_mode {
+        if let GameScreen::Embark = self.game_mode {
             if let Some(del_x) = self.embark_state.del_x {
                 let new_val = self
                     .embark_state

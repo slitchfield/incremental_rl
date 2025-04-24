@@ -117,18 +117,7 @@ fn draw_embark_screen(state: &GameState) {
         LIGHTGRAY,
     );
 
-    let cur_location = state.cur_location;
-
-    let embark_params;
-    if let Location::Embark(embark_val) = cur_location {
-        embark_params = embark_val;
-    } else {
-        error!("Entered draw_embark_screen without a valid inner embark state");
-        unimplemented!(); // Handle error case
-    }
-
     // Render the tilemap!
-    // TODO: figure this out without a copy every time?
     let local_tilemap;
     if let Some(tilemap) = &state.embark_state.tilemap {
         local_tilemap = tilemap;
@@ -160,9 +149,13 @@ fn draw_embark_screen(state: &GameState) {
         }
     }
 
-    let x = state.embark_state.player_x as f32;
-    let y = state.embark_state.player_y as f32;
-    let r = embark_params.dims.x;
+    let player_x = state.embark_state.player_x as f32; // In tiles
+    let player_y = state.embark_state.player_y as f32;
+
+    let r = tile_width / 2.0;
+    // In pixels; account for (x,y) referring to center in draw_circle, not upper left
+    let x = upper_left_x + player_x * tile_width + r;
+    let y = upper_left_y + player_y * tile_height + r;
     draw_circle(x, y, r, RED);
 }
 
@@ -222,7 +215,7 @@ pub fn render_frame(state: &GameState) -> Option<UiEvent> {
             clear_background(BLACK);
             draw_idle_screen(state)
         }
-        GameScreen::Embark(_location) => {
+        GameScreen::Embark => {
             clear_background(DARKGREEN);
             draw_embark_screen(state);
             None
