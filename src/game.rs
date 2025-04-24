@@ -317,24 +317,32 @@ impl GameState {
         }
 
         if let GameScreen::Embark = self.game_mode {
+            let new_x;
+            let new_y;
             if let Some(del_x) = self.embark_state.del_x {
-                let new_val = self
+                new_x = self
                     .embark_state
                     .player_x
                     .checked_add_signed(del_x as i32)
                     .unwrap();
-                self.embark_state.player_x = new_val;
                 self.embark_state.del_x = None;
+            } else {
+                new_x = self.embark_state.player_x;
             }
             if let Some(del_y) = self.embark_state.del_y {
-                let new_val = self
+                new_y = self
                     .embark_state
                     .player_y
                     .checked_add_signed(del_y as i32)
                     .unwrap();
-                self.embark_state.player_y = new_val;
                 self.embark_state.del_y = None;
+            } else {
+                new_y = self.embark_state.player_y;
             }
+
+            //TODO: Check if new position hits a wall, and potentially deny update
+            self.embark_state.player_x = new_x;
+            self.embark_state.player_y = new_y;
         }
 
         // Process the idle tick
