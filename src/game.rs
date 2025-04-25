@@ -317,32 +317,36 @@ impl GameState {
         }
 
         if let GameScreen::Embark = self.game_mode {
-            let new_x;
-            let new_y;
-            if let Some(del_x) = self.embark_state.del_x {
-                new_x = self
-                    .embark_state
+            let new_x = if let Some(del_x) = self.embark_state.del_x {
+                self.embark_state.del_x = None;
+                self.embark_state
                     .player_x
                     .checked_add_signed(del_x as i32)
-                    .unwrap();
-                self.embark_state.del_x = None;
+                    .unwrap()
             } else {
-                new_x = self.embark_state.player_x;
-            }
-            if let Some(del_y) = self.embark_state.del_y {
-                new_y = self
-                    .embark_state
+                self.embark_state.player_x
+            };
+            let new_y = if let Some(del_y) = self.embark_state.del_y {
+                self.embark_state.del_y = None;
+                self.embark_state
                     .player_y
                     .checked_add_signed(del_y as i32)
-                    .unwrap();
-                self.embark_state.del_y = None;
+                    .unwrap()
             } else {
-                new_y = self.embark_state.player_y;
-            }
+                self.embark_state.player_y
+            };
 
-            //TODO: Check if new position hits a wall, and potentially deny update
-            self.embark_state.player_x = new_x;
-            self.embark_state.player_y = new_y;
+            if let Some(tilemap) = &self.embark_state.tilemap {
+                let tile_index: usize =
+                    (new_y * (tilemap.width as u32) + new_x).try_into().unwrap();
+                if let Tile::Empty = tilemap.tiles[tile_index] {
+                    //TODO: Check if new position hits a wall, and potentially deny update
+                    self.embark_state.player_x = new_x;
+                    self.embark_state.player_y = new_y;
+                }
+            } else {
+                todo!()
+            }
         }
 
         // Process the idle tick
