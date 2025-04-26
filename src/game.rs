@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub enum UiEvent {
     EmbarkLocation(Location),
@@ -118,8 +118,8 @@ pub struct GameState {
     pub next_game_mode: Option<GameScreen>,
     pub next_location: Option<Location>,
 
-    //pub resources: Resources,
     pub resources: HashMap<String, Resource>,
+    pub unlocked_resources: HashSet<String>,
     pub cur_location: Location,
     pub scouted_locations: Vec<Location>,
 
@@ -158,6 +158,8 @@ impl Default for GameState {
                 max_val: 100.0,
             },
         );
+
+        let default_unlocked: HashSet<String> = HashSet::from_iter(vec!["energy".to_string()]);
         GameState {
             exit_requested: false,
 
@@ -174,6 +176,7 @@ impl Default for GameState {
             cur_location: Location::AtBase,
             scouted_locations: vec![],
             resources: default_resources,
+            unlocked_resources: default_unlocked,
 
             embark_state: EmbarkState::default(),
         }

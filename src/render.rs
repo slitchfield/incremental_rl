@@ -90,7 +90,9 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     .label("Resource Window")
     .ui(&mut root_ui(), |ui| {
         for (name, resource) in &state.resources {
-            ui.label(None, &resource.display(name));
+            if state.unlocked_resources.contains(name) {
+                ui.label(None, &resource.display(name));
+            }
         }
     });
 
