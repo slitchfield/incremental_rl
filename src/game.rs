@@ -13,6 +13,7 @@ pub enum UiEvent {
 pub struct Resource {
     pub cur_val: f32,
     pub max_val: f32,
+    pub color: Color,
 }
 
 impl Resource {
@@ -42,6 +43,7 @@ pub struct Resources {
 pub enum Tile {
     Empty,
     Wall,
+    Resource(Resource),
 }
 
 #[derive(Default)]
@@ -75,6 +77,7 @@ impl Default for EmbarkState {
 pub struct EmbarkParams {
     pub seed: usize,
     pub dims: Vec2,
+    // TODO: specify embark probabilities for items
 }
 
 impl Default for EmbarkParams {
@@ -135,6 +138,7 @@ impl Default for GameState {
             Resource {
                 cur_val: 100.0,
                 max_val: 100.0,
+                color: WHITE,
             },
         );
         default_resources.insert(
@@ -142,6 +146,7 @@ impl Default for GameState {
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
+                color: BROWN,
             },
         );
         default_resources.insert(
@@ -149,6 +154,7 @@ impl Default for GameState {
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
+                color: BLUE,
             },
         );
         default_resources.insert(
@@ -156,6 +162,7 @@ impl Default for GameState {
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
+                color: BEIGE,
             },
         );
 
@@ -226,7 +233,28 @@ impl GameState {
                 {
                     tilemap.tiles.push(Tile::Wall);
                 } else {
-                    tilemap.tiles.push(Tile::Empty);
+                    // TODO: roll dice on whether tile is empty or resourced
+                    if x == 5 && y == 5 {
+                        tilemap.tiles.push(Tile::Resource(Resource {
+                            cur_val: 1.0,
+                            max_val: 1.0,
+                            color: BLUE,
+                        }));
+                    } else if x == 10 && y == 10 {
+                        tilemap.tiles.push(Tile::Resource(Resource {
+                            cur_val: 1.0,
+                            max_val: 1.0,
+                            color: BROWN,
+                        }));
+                    } else if x == 15 && y == 15 {
+                        tilemap.tiles.push(Tile::Resource(Resource {
+                            cur_val: 1.0,
+                            max_val: 1.0,
+                            color: BEIGE,
+                        }));
+                    } else {
+                        tilemap.tiles.push(Tile::Empty);
+                    }
                 }
             }
         }
@@ -364,7 +392,8 @@ impl GameState {
             if let Some(tilemap) = &self.embark_state.tilemap {
                 let tile_index: usize =
                     (new_y * (tilemap.width as u32) + new_x).try_into().unwrap();
-                if let Tile::Empty = tilemap.tiles[tile_index] {
+                if let Tile::Wall = tilemap.tiles[tile_index] {
+                } else {
                     //TODO: Check if new position hits a wall, and potentially deny update
                     self.embark_state.player_x = new_x;
                     self.embark_state.player_y = new_y;

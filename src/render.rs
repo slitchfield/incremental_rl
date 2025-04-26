@@ -122,8 +122,8 @@ fn draw_embark_screen(state: &GameState) {
         todo!()
     }
 
-    let tile_width = 5.0f32;
-    let tile_height = 5.0f32;
+    let tile_width = 7.5f32;
+    let tile_height = 7.5f32;
     let center_x = state.screen_width / 2.0;
     let center_y = height * state.screen_height / 2.0;
     let upper_left_x = center_x - tile_width * local_tilemap.width / 2.0;
@@ -135,12 +135,15 @@ fn draw_embark_screen(state: &GameState) {
             let tile_x = upper_left_x + (c as f32) * tile_width;
 
             let tile_index: usize = (r * (local_tilemap.width as u32) + c).try_into().unwrap();
-            match local_tilemap.tiles[tile_index] {
+            match &local_tilemap.tiles[tile_index] {
                 Tile::Wall => {
                     draw_rectangle(tile_x, tile_y, tile_width, tile_height, BLACK);
                 }
                 Tile::Empty => {
                     draw_rectangle(tile_x, tile_y, tile_width, tile_height, WHITE);
+                }
+                Tile::Resource(resource) => {
+                    draw_rectangle(tile_x, tile_y, tile_width, tile_height, resource.color);
                 }
             }
         }
