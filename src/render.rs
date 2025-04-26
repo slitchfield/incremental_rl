@@ -48,8 +48,8 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
         });
         ui.separator();
         ui.tree_node(hash!(), "Placeholder Functions", |ui| {
-            if ui.button(None, "Buy Circle") {
-                return_event = Some(UiEvent::BuyCircle(1.0));
+            if ui.button(None, "Empty button") {
+                info!("Pressed empty button!");
             }
         });
         ui.separator();
@@ -89,14 +89,9 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     .movable(false)
     .label("Resource Window")
     .ui(&mut root_ui(), |ui| {
-        ui.label(
-            None,
-            format!("Circles: {}", state.resources.circles).as_str(),
-        );
-        ui.label(
-            None,
-            format!("Squares: {}", state.resources.squares).as_str(),
-        );
+        for (name, resource) in &state.resources {
+            ui.label(None, &resource.display(name));
+        }
     });
 
     return_event
@@ -187,7 +182,8 @@ fn draw_status_bar(state: &GameState) {
             None,
             format!(
                 "Batteries: [{:.3} / {:.3}]",
-                state.resources.energy.cur_val, state.resources.energy.max_val
+                state.resources.get("energy").unwrap().cur_val,
+                state.resources.get("energy").unwrap().max_val
             )
             .as_str(),
         );

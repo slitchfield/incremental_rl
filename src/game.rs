@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
+use std::collections::HashMap;
 
 pub enum UiEvent {
-    BuyCircle(f32),
     EmbarkLocation(Location),
     KeyPress(KeyCode),
     Quit,
@@ -26,12 +26,17 @@ impl Resource {
         }
         self.cur_val = new_val;
     }
+
+    pub fn display(&self, name: &String) -> String {
+        format!("{}: {:.3} / {:.3}", name, self.cur_val, self.max_val)
+    }
 }
 
 pub struct Resources {
     pub energy: Resource,
-    pub circles: f32,
-    pub squares: f32,
+    pub iron_ore: Resource,
+    pub bauxite: Resource,
+    pub sandstone: Resource,
 }
 
 pub enum Tile {
@@ -113,7 +118,8 @@ pub struct GameState {
     pub next_game_mode: Option<GameScreen>,
     pub next_location: Option<Location>,
 
-    pub resources: Resources,
+    //pub resources: Resources,
+    pub resources: HashMap<String, Resource>,
     pub cur_location: Location,
     pub scouted_locations: Vec<Location>,
 
@@ -123,6 +129,35 @@ pub struct GameState {
 
 impl Default for GameState {
     fn default() -> Self {
+        let mut default_resources: HashMap<String, Resource> = HashMap::new();
+        default_resources.insert(
+            "energy".to_string(),
+            Resource {
+                cur_val: 100.0,
+                max_val: 100.0,
+            },
+        );
+        default_resources.insert(
+            "bauxite".to_string(),
+            Resource {
+                cur_val: 0.0,
+                max_val: 100.0,
+            },
+        );
+        default_resources.insert(
+            "iron_ore".to_string(),
+            Resource {
+                cur_val: 0.0,
+                max_val: 100.0,
+            },
+        );
+        default_resources.insert(
+            "sandstone".to_string(),
+            Resource {
+                cur_val: 0.0,
+                max_val: 100.0,
+            },
+        );
         GameState {
             exit_requested: false,
 
@@ -138,14 +173,7 @@ impl Default for GameState {
 
             cur_location: Location::AtBase,
             scouted_locations: vec![],
-            resources: Resources {
-                energy: Resource {
-                    cur_val: 100.0,
-                    max_val: 100.0,
-                },
-                circles: 0.0,
-                squares: 0.0,
-            },
+            resources: default_resources,
 
             embark_state: EmbarkState::default(),
         }
@@ -154,14 +182,11 @@ impl Default for GameState {
 
 impl GameState {
     pub fn idle_tick(&mut self) {
-        // Placeholder, increment squares by circle count
-        self.resources.squares += self.resources.circles;
-
         // Handle Energy
         //   Currently, when at base, recharge 1.0 unit per tick
         match self.cur_location {
             Location::AtBase => {
-                self.resources.energy.add_or_max(1.0);
+                self.resources.get_mut("energy").unwrap().add_or_max(1.0);
             }
             Location::Embark(_val) => {
                 // Currently, do nothing
@@ -194,7 +219,7 @@ impl GameState {
                     || (y == (tilemap.height as u32) - 1)
                     || x == 0
                     || (x == (tilemap.width as u32) - 1)
-                    || x == y
+                // || x == y
                 {
                     tilemap.tiles.push(Tile::Wall);
                 } else {
@@ -240,9 +265,6 @@ impl GameState {
     pub fn process_inputs(&mut self, events: &mut Vec<UiEvent>) {
         while let Some(event) = events.pop() {
             match event {
-                UiEvent::BuyCircle(new_delta) => {
-                    self.resources.circles += new_delta;
-                }
                 UiEvent::EmbarkLocation(location) => {
                     // Switch to embark/roguelike mode
                     self.next_game_mode = Some(GameScreen::Embark);
@@ -262,9 +284,9 @@ impl GameState {
                     self.next_game_mode = Some(next_game_screen);
                 }
                 UiEvent::SurveySurroundings => {
-                    if self.resources.energy.cur_val >= 100.0 {
+                    if self.resources.get("energy").unwrap().cur_val >= 100.0 {
                         // TODO: Abstract cost of surveying
-                        self.resources.energy.add_or_max(-100.0);
+                        self.resources.get_mut("energy").unwrap().add_or_max(-100.0);
                         info!("Surveying Surroundings...");
                         self.survey_surroundings();
                     }
