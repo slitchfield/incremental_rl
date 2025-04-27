@@ -16,6 +16,12 @@ pub struct Resource {
     pub color: Color,
 }
 
+pub struct TileResource {
+    pub key: String,
+    pub color: Color,
+    pub amount: f32,
+}
+
 impl Resource {
     fn add_or_max(&mut self, delta: f32) {
         let mut new_val = self.cur_val + delta;
@@ -33,17 +39,10 @@ impl Resource {
     }
 }
 
-pub struct Resources {
-    pub energy: Resource,
-    pub iron_ore: Resource,
-    pub bauxite: Resource,
-    pub sandstone: Resource,
-}
-
 pub enum Tile {
     Empty,
     Wall,
-    Resource(Resource),
+    Resource(TileResource),
 }
 
 #[derive(Default)]
@@ -128,6 +127,7 @@ pub struct GameState {
 
     // Embark specific state
     pub embark_state: EmbarkState,
+    pub mine_requested: bool,
 }
 
 impl Default for GameState {
@@ -186,6 +186,7 @@ impl Default for GameState {
             unlocked_resources: default_unlocked,
 
             embark_state: EmbarkState::default(),
+            mine_requested: false,
         }
     }
 }
@@ -235,22 +236,22 @@ impl GameState {
                 } else {
                     // TODO: roll dice on whether tile is empty or resourced
                     if x == 5 && y == 5 {
-                        tilemap.tiles.push(Tile::Resource(Resource {
-                            cur_val: 1.0,
-                            max_val: 1.0,
+                        tilemap.tiles.push(Tile::Resource(TileResource {
+                            key: "iron_ore".to_string(),
                             color: BLUE,
+                            amount: 10.0,
                         }));
                     } else if x == 10 && y == 10 {
-                        tilemap.tiles.push(Tile::Resource(Resource {
-                            cur_val: 1.0,
-                            max_val: 1.0,
+                        tilemap.tiles.push(Tile::Resource(TileResource {
+                            key: "bauxite".to_string(),
                             color: BROWN,
+                            amount: 10.0,
                         }));
                     } else if x == 15 && y == 15 {
-                        tilemap.tiles.push(Tile::Resource(Resource {
-                            cur_val: 1.0,
-                            max_val: 1.0,
+                        tilemap.tiles.push(Tile::Resource(TileResource {
+                            key: "sandstone".to_string(),
                             color: BEIGE,
+                            amount: 10.0,
                         }));
                     } else {
                         tilemap.tiles.push(Tile::Empty);
@@ -282,6 +283,9 @@ impl GameState {
             }
             KeyCode::Right => {
                 self.embark_state.del_x = Some(1.0);
+            }
+            KeyCode::Space => {
+                self.mine_requested = true;
             }
             _ => {
                 warn!("Unhandled keycode: {:?}", keycode);
@@ -389,14 +393,27 @@ impl GameState {
                 self.embark_state.player_y
             };
 
-            if let Some(tilemap) = &self.embark_state.tilemap {
+            if let Some(tilemap) = &mut self.embark_state.tilemap {
                 let tile_index: usize =
                     (new_y * (tilemap.width as u32) + new_x).try_into().unwrap();
                 if let Tile::Wall = tilemap.tiles[tile_index] {
                 } else {
-                    //TODO: Check if new position hits a wall, and potentially deny update
                     self.embark_state.player_x = new_x;
                     self.embark_state.player_y = new_y;
+                }
+                if self.mine_requested {
+                    if let Tile::Resource(resource) = &mut tilemap.tiles[tile_index] {
+                        // TODO: check energy cost of mining!
+                        let key = &resource.key;
+                        info!("Mining {}", key);
+                        let res_handle = self.resources.get_mut(key).unwrap();
+                        res_handle.cur_val += 1.0;
+                        if !self.unlocked_resources.contains(key) {
+                            info!("Unlocking {}", key);
+                            self.unlocked_resources.insert(key.clone());
+                        }
+                    }
+                    self.mine_requested = false;
                 }
             } else {
                 todo!()

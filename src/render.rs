@@ -142,8 +142,8 @@ fn draw_embark_screen(state: &GameState) {
                 Tile::Empty => {
                     draw_rectangle(tile_x, tile_y, tile_width, tile_height, WHITE);
                 }
-                Tile::Resource(resource) => {
-                    draw_rectangle(tile_x, tile_y, tile_width, tile_height, resource.color);
+                Tile::Resource(tileresource) => {
+                    draw_rectangle(tile_x, tile_y, tile_width, tile_height, tileresource.color);
                 }
             }
         }

@@ -53,7 +53,7 @@ async fn main() {
         if is_key_pressed(KeyCode::I) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::I));
         }
-        if is_key_down(KeyCode::Right) {
+        if is_key_pressed(KeyCode::Right) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::Right));
         }
         if is_key_pressed(KeyCode::Left) {
@@ -62,8 +62,11 @@ async fn main() {
         if is_key_pressed(KeyCode::Up) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::Up));
         }
-        if is_key_down(KeyCode::Down) {
+        if is_key_pressed(KeyCode::Down) {
             platform_event_queue.push(UiEvent::KeyPress(KeyCode::Down));
+        }
+        if is_key_pressed(KeyCode::Space) {
+            platform_event_queue.push(UiEvent::KeyPress(KeyCode::Space));
         }
 
         state.process_inputs(&mut platform_event_queue);
