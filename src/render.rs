@@ -7,6 +7,7 @@ use macroquad::ui::{
 use crate::game::GameScreen;
 use crate::game::GameState;
 use crate::game::Location;
+use crate::game::ResourceId;
 use crate::game::Tile;
 use crate::game::UiEvent;
 
@@ -89,9 +90,9 @@ fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     .movable(false)
     .label("Resource Window")
     .ui(&mut root_ui(), |ui| {
-        for (name, resource) in &state.resources {
-            if state.unlocked_resources.contains(name) {
-                ui.label(None, &resource.display(name));
+        for (id, resource) in &state.resources {
+            if state.unlocked_resources.contains(id) {
+                ui.label(None, &resource.display(*id));
             }
         }
     });
@@ -187,8 +188,8 @@ fn draw_status_bar(state: &GameState) {
             None,
             format!(
                 "Batteries: [{:.3} / {:.3}]",
-                state.resources.get("energy").unwrap().cur_val,
-                state.resources.get("energy").unwrap().max_val
+                state.resources.get(&ResourceId::Energy).unwrap().cur_val,
+                state.resources.get(&ResourceId::Energy).unwrap().max_val
             )
             .as_str(),
         );

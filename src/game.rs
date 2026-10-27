@@ -10,6 +10,25 @@ pub enum UiEvent {
     SurveySurroundings,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ResourceId {
+    Energy,
+    IronOre,
+    Bauxite,
+    Sandstone,
+}
+
+impl ResourceId {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ResourceId::Energy => "Energy",
+            ResourceId::IronOre => "Iron Ore",
+            ResourceId::Bauxite => "Bauxite",
+            ResourceId::Sandstone => "Sandstone",
+        }
+    }
+}
+
 pub struct Resource {
     pub cur_val: f32,
     pub max_val: f32,
@@ -17,7 +36,7 @@ pub struct Resource {
 }
 
 pub struct TileResource {
-    pub key: String,
+    pub id: ResourceId,
     pub color: Color,
     pub amount: f32,
 }
@@ -34,8 +53,8 @@ impl Resource {
         self.cur_val = new_val;
     }
 
-    pub fn display(&self, name: &String) -> String {
-        format!("{}: {:.3} / {:.3}", name, self.cur_val, self.max_val)
+    pub fn display(&self, id: ResourceId) -> String {
+        format!("{}: {:.3} / {:.3}", id.name(), self.cur_val, self.max_val)
     }
 }
 
@@ -120,8 +139,8 @@ pub struct GameState {
     pub next_game_mode: Option<GameScreen>,
     pub next_location: Option<Location>,
 
-    pub resources: HashMap<String, Resource>,
-    pub unlocked_resources: HashSet<String>,
+    pub resources: HashMap<ResourceId, Resource>,
+    pub unlocked_resources: HashSet<ResourceId>,
     pub cur_location: Location,
     pub scouted_locations: Vec<Location>,
 
@@ -132,9 +151,9 @@ pub struct GameState {
 
 impl Default for GameState {
     fn default() -> Self {
-        let mut default_resources: HashMap<String, Resource> = HashMap::new();
+        let mut default_resources: HashMap<ResourceId, Resource> = HashMap::new();
         default_resources.insert(
-            "energy".to_string(),
+            ResourceId::Energy,
             Resource {
                 cur_val: 100.0,
                 max_val: 100.0,
@@ -142,7 +161,7 @@ impl Default for GameState {
             },
         );
         default_resources.insert(
-            "bauxite".to_string(),
+            ResourceId::Bauxite,
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
@@ -150,7 +169,7 @@ impl Default for GameState {
             },
         );
         default_resources.insert(
-            "iron_ore".to_string(),
+            ResourceId::IronOre,
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
@@ -158,7 +177,7 @@ impl Default for GameState {
             },
         );
         default_resources.insert(
-            "sandstone".to_string(),
+            ResourceId::Sandstone,
             Resource {
                 cur_val: 0.0,
                 max_val: 100.0,
@@ -166,7 +185,7 @@ impl Default for GameState {
             },
         );
 
-        let default_unlocked: HashSet<String> = HashSet::from_iter(vec!["energy".to_string()]);
+        let default_unlocked: HashSet<ResourceId> = HashSet::from([ResourceId::Energy]);
         GameState {
             exit_requested: false,
 
@@ -197,7 +216,7 @@ impl GameState {
         //   Currently, when at base, recharge 1.0 unit per tick
         match self.cur_location {
             Location::AtBase => {
-                self.resources.get_mut("energy").unwrap().add_or_max(1.0);
+                self.resources.get_mut(&ResourceId::Energy).unwrap().add_or_max(1.0);
             }
             Location::Embark(_val) => {
                 // Currently, do nothing
@@ -237,19 +256,19 @@ impl GameState {
                     // TODO: roll dice on whether tile is empty or resourced
                     if x == 5 && y == 5 {
                         tilemap.tiles.push(Tile::Resource(TileResource {
-                            key: "iron_ore".to_string(),
+                            id: ResourceId::IronOre,
                             color: BLUE,
                             amount: 10.0,
                         }));
                     } else if x == 10 && y == 10 {
                         tilemap.tiles.push(Tile::Resource(TileResource {
-                            key: "bauxite".to_string(),
+                            id: ResourceId::Bauxite,
                             color: BROWN,
                             amount: 10.0,
                         }));
                     } else if x == 15 && y == 15 {
                         tilemap.tiles.push(Tile::Resource(TileResource {
-                            key: "sandstone".to_string(),
+                            id: ResourceId::Sandstone,
                             color: BEIGE,
                             amount: 10.0,
                         }));
@@ -319,9 +338,9 @@ impl GameState {
                     self.next_game_mode = Some(next_game_screen);
                 }
                 UiEvent::SurveySurroundings => {
-                    if self.resources.get("energy").unwrap().cur_val >= 100.0 {
+                    if self.resources.get(&ResourceId::Energy).unwrap().cur_val >= 100.0 {
                         // TODO: Abstract cost of surveying
-                        self.resources.get_mut("energy").unwrap().add_or_max(-100.0);
+                        self.resources.get_mut(&ResourceId::Energy).unwrap().add_or_max(-100.0);
                         info!("Surveying Surroundings...");
                         self.survey_surroundings();
                     }
@@ -404,13 +423,13 @@ impl GameState {
                 if self.mine_requested {
                     if let Tile::Resource(resource) = &mut tilemap.tiles[tile_index] {
                         // TODO: check energy cost of mining!
-                        let key = &resource.key;
-                        info!("Mining {}", key);
-                        let res_handle = self.resources.get_mut(key).unwrap();
+                        let id = resource.id;
+                        info!("Mining {}", id.name());
+                        let res_handle = self.resources.get_mut(&id).unwrap();
                         res_handle.cur_val += 1.0;
-                        if !self.unlocked_resources.contains(key) {
-                            info!("Unlocking {}", key);
-                            self.unlocked_resources.insert(key.clone());
+                        if !self.unlocked_resources.contains(&id) {
+                            info!("Unlocking {}", id.name());
+                            self.unlocked_resources.insert(id);
                         }
                     }
                     self.mine_requested = false;
