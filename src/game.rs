@@ -211,12 +211,22 @@ impl Default for GameState {
 }
 
 impl GameState {
+    pub fn energy(&self) -> Option<&Resource> {
+        self.resources.get(&ResourceId::Energy)
+    }
+
+    pub fn energy_mut(&mut self) -> Option<&mut Resource> {
+        self.resources.get_mut(&ResourceId::Energy)
+    }
+
     pub fn idle_tick(&mut self) {
         // Handle Energy
         //   Currently, when at base, recharge 1.0 unit per tick
         match self.cur_location {
             Location::AtBase => {
-                self.resources.get_mut(&ResourceId::Energy).unwrap().add_or_max(1.0);
+                if let Some(energy) = self.energy_mut() {
+                    energy.add_or_max(1.0);
+                }
             }
             Location::Embark(_val) => {
                 // Currently, do nothing
@@ -338,11 +348,13 @@ impl GameState {
                     self.next_game_mode = Some(next_game_screen);
                 }
                 UiEvent::SurveySurroundings => {
-                    if self.resources.get(&ResourceId::Energy).unwrap().cur_val >= 100.0 {
-                        // TODO: Abstract cost of surveying
-                        self.resources.get_mut(&ResourceId::Energy).unwrap().add_or_max(-100.0);
-                        info!("Surveying Surroundings...");
-                        self.survey_surroundings();
+                    if let Some(energy) = self.energy_mut() {
+                        if energy.cur_val >= 100.0 {
+                            // TODO: Abstract cost of surveying
+                            energy.add_or_max(-100.0);
+                            info!("Surveying Surroundings...");
+                            self.survey_surroundings();
+                        }
                     }
                 }
             }
@@ -369,8 +381,11 @@ impl GameState {
                     GameScreen::Embark => {
                         info!("Beginning embark...");
                         self.next_game_mode = None;
-                        self.cur_location = self.next_location.unwrap();
-                        self.next_location = None;
+                        let Some(location) = self.next_location.take() else {
+                            warn!("Embark requested without a location; staying put");
+                            return;
+                        };
+                        self.cur_location = location;
 
                         let x: f32;
                         let y: f32;
@@ -398,7 +413,7 @@ impl GameState {
                 self.embark_state
                     .player_x
                     .checked_add_signed(del_x as i32)
-                    .unwrap()
+                    .unwrap_or(self.embark_state.player_x)
             } else {
                 self.embark_state.player_x
             };
@@ -407,29 +422,32 @@ impl GameState {
                 self.embark_state
                     .player_y
                     .checked_add_signed(del_y as i32)
-                    .unwrap()
+                    .unwrap_or(self.embark_state.player_y)
             } else {
                 self.embark_state.player_y
             };
 
             if let Some(tilemap) = &mut self.embark_state.tilemap {
-                let tile_index: usize =
-                    (new_y * (tilemap.width as u32) + new_x).try_into().unwrap();
-                if let Tile::Wall = tilemap.tiles[tile_index] {
-                } else {
-                    self.embark_state.player_x = new_x;
-                    self.embark_state.player_y = new_y;
+                let tile_index = (new_y * (tilemap.width as u32) + new_x) as usize;
+                match tilemap.tiles.get(tile_index) {
+                    None | Some(Tile::Wall) => {}
+                    Some(_) => {
+                        self.embark_state.player_x = new_x;
+                        self.embark_state.player_y = new_y;
+                    }
                 }
                 if self.mine_requested {
-                    if let Tile::Resource(resource) = &mut tilemap.tiles[tile_index] {
+                    if let Some(Tile::Resource(resource)) = tilemap.tiles.get(tile_index) {
                         // TODO: check energy cost of mining!
                         let id = resource.id;
                         info!("Mining {}", id.name());
-                        let res_handle = self.resources.get_mut(&id).unwrap();
-                        res_handle.cur_val += 1.0;
-                        if !self.unlocked_resources.contains(&id) {
-                            info!("Unlocking {}", id.name());
-                            self.unlocked_resources.insert(id);
+                        if let Some(res_handle) = self.resources.get_mut(&id) {
+                            res_handle.cur_val += 1.0;
+                            if self.unlocked_resources.insert(id) {
+                                info!("Unlocking {}", id.name());
+                            }
+                        } else {
+                            warn!("Mined {} but it has no resource entry", id.name());
                         }
                     }
                     self.mine_requested = false;

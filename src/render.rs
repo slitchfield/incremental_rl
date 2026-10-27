@@ -7,12 +7,16 @@ use macroquad::ui::{
 use crate::game::GameScreen;
 use crate::game::GameState;
 use crate::game::Location;
-use crate::game::ResourceId;
 use crate::game::Tile;
 use crate::game::UiEvent;
 
+use crate::utils::render_primitives;
+
+
 fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     let mut return_event = None;
+
+    //let main_window_rect: render_primitives::Rectangle;
 
     let gutter = 10.0;
     let main_width = 0.8;
@@ -135,7 +139,7 @@ fn draw_embark_screen(state: &GameState) {
         for c in 0..(local_tilemap.width as u32) {
             let tile_x = upper_left_x + (c as f32) * tile_width;
 
-            let tile_index: usize = (r * (local_tilemap.width as u32) + c).try_into().unwrap();
+            let tile_index = (r * (local_tilemap.width as u32) + c) as usize;
             match &local_tilemap.tiles[tile_index] {
                 Tile::Wall => {
                     draw_rectangle(tile_x, tile_y, tile_width, tile_height, BLACK);
@@ -184,14 +188,10 @@ fn draw_status_bar(state: &GameState) {
     .movable(false)
     .label("Status Window")
     .ui(&mut root_ui(), |ui| {
+        let (cur, max) = state.energy().map_or((0.0, 0.0), |e| (e.cur_val, e.max_val));
         ui.label(
             None,
-            format!(
-                "Batteries: [{:.3} / {:.3}]",
-                state.resources.get(&ResourceId::Energy).unwrap().cur_val,
-                state.resources.get(&ResourceId::Energy).unwrap().max_val
-            )
-            .as_str(),
+            format!("Batteries: [{:.3} / {:.3}]", cur, max).as_str(),
         );
         let tick_timer = get_time() - state.last_tick;
         ui.label(

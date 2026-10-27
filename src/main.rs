@@ -1,5 +1,6 @@
 pub mod game;
 pub mod render;
+pub mod utils;
 
 use game::GameState;
 use game::UiEvent;
