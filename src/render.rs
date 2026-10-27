@@ -10,9 +10,6 @@ use crate::game::Location;
 use crate::game::Tile;
 use crate::game::UiEvent;
 
-use crate::utils::render_primitives;
-
-
 fn draw_idle_screen(state: &GameState) -> Option<UiEvent> {
     let mut return_event = None;
 
@@ -188,7 +185,9 @@ fn draw_status_bar(state: &GameState) {
     .movable(false)
     .label("Status Window")
     .ui(&mut root_ui(), |ui| {
-        let (cur, max) = state.energy().map_or((0.0, 0.0), |e| (e.cur_val, e.max_val));
+        let (cur, max) = state
+            .energy()
+            .map_or((0.0, 0.0), |e| (e.cur_val, e.max_val));
         ui.label(
             None,
             format!("Batteries: [{:.3} / {:.3}]", cur, max).as_str(),

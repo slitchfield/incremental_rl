@@ -43,7 +43,7 @@ async fn main() {
 
         // Check if screen size has changed every .1 seconds
         // TODO: Check and enforce framerate
-        if frame_counter % 6 == 0usize {
+        if frame_counter.is_multiple_of(6) {
             platform_event_queue.push(UiEvent::Resize(screen_width(), screen_height()));
         }
 
